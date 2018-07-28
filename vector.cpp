@@ -13,18 +13,19 @@
 #define BOLD "\x1b[1m"
 
 //Advance Declaration
-void parser(std::string), end_program(), help();
+void parser(std::string), end_program(), help(), print_history();
 
 //Preferences
 bool DEBUG_LOG = false;
 bool TEST_LOG = false;
 
 
-//-----------------------
+//Custom Class
 class CVector{
     private:
         double x, y, z;
     public:
+        CVector(){}; //Empty construstion
         CVector(double, double, double);
         double get_X();
         double get_Y();
@@ -32,10 +33,18 @@ class CVector{
         void set_value(double, double, double);
         CVector operator + (const CVector&);
         CVector operator - (const CVector&);
+        CVector operator * (const CVector&);
 };
 
 //Global Variable
 CVector current(0, 0, 0);
+CVector* result_history = new CVector[20];
+CVector* opt_history = new CVector[20];
+char* symbol_history = new char[20];
+int result_pos = 0;
+int opt_pos = 0;
+int sym_pos = 0;
+
 
 CVector::CVector(double a, double b, double c){
     x = a;
@@ -77,6 +86,14 @@ CVector CVector::operator- (const CVector& param){
     return result;
 }
 
+CVector CVector::operator* (const CVector& param){
+    CVector result(0, 0, 0);
+    result.x = y*(param.z) - (param.y)*z;
+    result.y = -(x*(param.z) - (param.x)*z);
+    result.z = x*(param.y) - (param.x)*y;
+    return result;
+}
+
 void print_vector(CVector to_print){
     std::cout<<BOLD"   "
         <<"("<<to_print.get_X()<<", "<<to_print.get_Y()<<", "<<to_print.get_Z()<<")"NRM<<std::endl;
@@ -110,6 +127,7 @@ bool notValid(char c){
         case ')':
         case '+':
         case '-':
+        case '*':
             return false;
         default:
             return true;
@@ -133,6 +151,17 @@ bool notNumber(char c){
             return false;
         default:
             return true;
+    }
+}
+
+bool isOperation(char c){
+    switch(c){
+        case '+':
+        case '-':
+        case '*':
+            return true;
+        default:
+            return false;
     }
 }
 
@@ -170,12 +199,38 @@ bool filter_order(std::string input){
 }
 
 void plus(CVector vc){
+    result_history[result_pos] = current;
+    result_pos++;
+    opt_history[opt_pos] = vc;
+    opt_pos++;
+    symbol_history[sym_pos] = '+';
+    sym_pos++;
+
     current = current + vc;
     start_rotate(current);
 }
 
 void minus(CVector vc){
+    result_history[result_pos] = current;
+    result_pos++;
+    opt_history[opt_pos] = vc;
+    opt_pos++;
+    symbol_history[sym_pos] = '-';
+    sym_pos++;
+
     current = current - vc;
+    start_rotate(current);
+}
+
+void multi(CVector vc){
+    result_history[result_pos] = current;
+    result_pos++;
+    opt_history[opt_pos] = vc;
+    opt_pos++;
+    symbol_history[sym_pos] = '*';
+    sym_pos++;
+
+    current = current * vc;
     start_rotate(current);
 }
 
@@ -186,6 +241,7 @@ void parser(std::string input){
     int pos = 0;
     if(input == "help" || input == "HELP") help();
     if(input == "exit" || input == "EXIT") end_program();
+    if(input == "history" || input == "HISTORY") print_history();
         if(DEBUG_LOG == true) {std::cout<<"Input before remove is: "<<input<<std::endl;}
     input.erase(std::remove_if(input.begin(), input.end(), isspace), input.end());
         if(DEBUG_LOG == true) {std::cout<<"Input after 1st remove is: "<<input<<std::endl;}
@@ -200,7 +256,7 @@ void parser(std::string input){
     if(!(comma_check && syntax_check && order_check)){
         printf(RED"INVALID EXPRESSION\n"NRM);
         start_rotate(current);
-    }//Input verified and pass
+    }//Input verified and to be processed
     input.erase(std::remove_if(input.begin(), input.end(), &notNumber), input.end());
         if(DEBUG_LOG == true) {std::cout<<"Input after 3rd remove is: "<<input<<std::endl;}
     //Parsing individual numbers
@@ -217,9 +273,21 @@ void parser(std::string input){
     CVector pending(numbers[0], numbers[1], numbers[2]);
     if(symbol=='+') plus(pending);
     if(symbol=='-') minus(pending);
+    if(symbol=='*') multi(pending);
 }
 
+void print_history(){
+    printf("-----------HISTORY-----------\n\n");
+    for(int i=0; i<20 && isOperation(symbol_history[i]); i++){
+        std::cout << "=> (" << result_history[i].get_X() << ", " << result_history[i].get_Y() << ", " << result_history[i].get_Z() << ") "
+                  << symbol_history[i] 
+                  << " (" << opt_history[i].get_X() << ", " << opt_history[i].get_Y() << ", " << opt_history[i].get_Z() << ") \n";
+    }
+    printf("\n");
+    start_rotate(current);
+}
 
+//Tests
 void test_plus(){
     printf(GRN "Testing plus operation...\n" NRM);
     CVector vector_A(0,0,0);
@@ -270,5 +338,9 @@ int main(){
 
     return 0;
 }
+
+//TODO: Add user interface
+
+//TODO: Add history overflow protection
 
 //BASH COLOR REFERENCE: https://github.com/shiena/ansicolor/blob/master/README.md
