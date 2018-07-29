@@ -199,28 +199,31 @@ bool filter_order(std::string input){
 }
 
 void clear_history(){
-    for(int i = 0; i<20; i++){
+    for(int i = 0; i<19; i++){
         symbol_history[i] = '/';
     }
-    printf("History has been cleared!\n");
+    result_pos = 0;
+    opt_pos = 0;
+    sym_pos = 0;
+    printf("History has been cleared!\n\n");
+    start_rotate(current);
 }
 
 void history_overflow(){
     printf("History memory full... use clear to reset\n");
-    for(int i=0; i<19; i++){
+    for(int i=0; i<18; i++){
         result_history[i] = result_history[i+1];
         opt_history[i] = opt_history[i+1];
         symbol_history[i] = symbol_history[i+1];
-        result_pos = opt_pos = sym_pos = 20;
     }
 }
 
 void record_history(CVector vc, char c){
-    if(result_pos==20 || opt_pos==20 || sym_pos==20){
+    if(result_pos==18 || opt_pos==18 || sym_pos==18){
         history_overflow();
-        result_history[result_pos] = current;
-        opt_history[opt_pos] = vc;
-        symbol_history[sym_pos] = c;
+        result_history[18] = current;
+        opt_history[18] = vc;
+        symbol_history[18] = c;
     }
     else{
         result_history[result_pos] = current;
@@ -261,7 +264,7 @@ void parser(std::string input){
     if(input == "help" || input == "HELP") help();
     if(input == "exit" || input == "EXIT") end_program();
     if(input == "history" || input == "HISTORY") print_history();
-    if(input == "clear" || input == "CLEAR") print_history();
+    if(input == "clear" || input == "CLEAR") clear_history();
         if(DEBUG_LOG == true) {std::cout<<"Input before remove is: "<<input<<std::endl;}
     input.erase(std::remove_if(input.begin(), input.end(), isspace), input.end());
         if(DEBUG_LOG == true) {std::cout<<"Input after 1st remove is: "<<input<<std::endl;}
@@ -298,7 +301,7 @@ void parser(std::string input){
 
 void print_history(){
     printf("-----------HISTORY-----------\n\n");
-    for(int i=0; i<20 && isOperation(symbol_history[i]); i++){
+    for(int i=0; i<19 && isOperation(symbol_history[i]); i++){
         std::cout << "=> (" << result_history[i].get_X() << ", " << result_history[i].get_Y() << ", " << result_history[i].get_Z() << ") "
                   << symbol_history[i] 
                   << " (" << opt_history[i].get_X() << ", " << opt_history[i].get_Y() << ", " << opt_history[i].get_Z() << ") \n";
