@@ -198,37 +198,56 @@ bool filter_order(std::string input){
     return result;
 }
 
+void clear_history(){
+    for(int i = 0; i<20; i++){
+        symbol_history[i] = '/';
+    }
+    printf("History has been cleared!\n");
+}
+
+void history_overflow(){
+    printf("History memory full... use clear to reset\n");
+    for(int i=0; i<19; i++){
+        result_history[i] = result_history[i+1];
+        opt_history[i] = opt_history[i+1];
+        symbol_history[i] = symbol_history[i+1];
+        result_pos = opt_pos = sym_pos = 20;
+    }
+}
+
+void record_history(CVector vc, char c){
+    if(result_pos==20 || opt_pos==20 || sym_pos==20){
+        history_overflow();
+        result_history[result_pos] = current;
+        opt_history[opt_pos] = vc;
+        symbol_history[sym_pos] = c;
+    }
+    else{
+        result_history[result_pos] = current;
+        result_pos++;
+        opt_history[opt_pos] = vc;
+        opt_pos++;
+        symbol_history[sym_pos] = c;
+        sym_pos++;
+    }
+}
+
 void plus(CVector vc){
-    result_history[result_pos] = current;
-    result_pos++;
-    opt_history[opt_pos] = vc;
-    opt_pos++;
-    symbol_history[sym_pos] = '+';
-    sym_pos++;
+    record_history(vc, '+');
 
     current = current + vc;
     start_rotate(current);
 }
 
 void minus(CVector vc){
-    result_history[result_pos] = current;
-    result_pos++;
-    opt_history[opt_pos] = vc;
-    opt_pos++;
-    symbol_history[sym_pos] = '-';
-    sym_pos++;
+    record_history(vc, '-');
 
     current = current - vc;
     start_rotate(current);
 }
 
 void multi(CVector vc){
-    result_history[result_pos] = current;
-    result_pos++;
-    opt_history[opt_pos] = vc;
-    opt_pos++;
-    symbol_history[sym_pos] = '*';
-    sym_pos++;
+    record_history(vc, '*');
 
     current = current * vc;
     start_rotate(current);
@@ -242,6 +261,7 @@ void parser(std::string input){
     if(input == "help" || input == "HELP") help();
     if(input == "exit" || input == "EXIT") end_program();
     if(input == "history" || input == "HISTORY") print_history();
+    if(input == "clear" || input == "CLEAR") print_history();
         if(DEBUG_LOG == true) {std::cout<<"Input before remove is: "<<input<<std::endl;}
     input.erase(std::remove_if(input.begin(), input.end(), isspace), input.end());
         if(DEBUG_LOG == true) {std::cout<<"Input after 1st remove is: "<<input<<std::endl;}
@@ -326,7 +346,7 @@ void help(){
 }
 
 void end_program(){
-    printf(RED"-------------------EXIT-------------------\n\n"NRM);
+    printf(RED "-----------EXIT-----------\n\n" NRM);
     exit(0);
 }
 
@@ -340,7 +360,5 @@ int main(){
 }
 
 //TODO: Add user interface
-
-//TODO: Add history overflow protection
 
 //BASH COLOR REFERENCE: https://github.com/shiena/ansicolor/blob/master/README.md
