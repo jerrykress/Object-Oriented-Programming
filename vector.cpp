@@ -11,6 +11,7 @@
 #define MAG "\x1B[35m"
 #define CYN "\x1B[36m"
 #define BOLD "\x1b[1m"
+#define clear() printf("\033[H\033[J")
 
 //Advance Declaration
 void parser(std::string), end_program(), help(), print_history();
@@ -95,6 +96,9 @@ CVector CVector::operator* (const CVector& param){
 }
 
 void print_vector(CVector to_print){
+    printf("===================================\n");
+    printf("HISTORY    CLEAR      HELP     EXIT\n");
+    printf("===================================\n\n");
     std::cout<<BOLD"   "
         <<"("<<to_print.get_X()<<", "<<to_print.get_Y()<<", "<<to_print.get_Z()<<")"NRM<<std::endl;
 }
@@ -173,14 +177,20 @@ bool filter_comma(std::string input){
         if(input[i]==',') c++;
     }
     if(c==2) result=true;
-    if(result==false) printf(YLW"INVALID NUMBER OF ELEMENTS\n\n"NRM);
+    if(result==false) {
+        clear();
+        printf(YLW"INVALID NUMBER OF ELEMENTS\n\n"NRM);
+    }
     return result;
 }
 
 bool filter_symbol(char symbol){
     bool result = false;
     if(symbol == '+' || symbol == '-' || symbol == '*') {result = true;}
-    if(result==false) printf(YLW "INVALID OPERATION\n\n" NRM);
+    if(result==false) {
+        clear();
+        printf(YLW "INVALID OPERATION\n\n" NRM);
+    }
     return result;
 }
 
@@ -194,7 +204,10 @@ bool filter_order(std::string input){
         if(input[i]=='(') {par_flag = true;}
         if( (!notNumber(input[i])) && par_flag==false) {result=false;}
     }
-    if(result==false) printf(YLW "INVALID NUMBER BEFORE PARENTHESIS\n\n" NRM);
+    if(result==false) {
+        clear();
+        printf(YLW "INVALID NUMBER BEFORE PARENTHESIS\n\n" NRM);
+    }
     return result;
 }
 
@@ -205,12 +218,13 @@ void clear_history(){
     result_pos = 0;
     opt_pos = 0;
     sym_pos = 0;
-    printf("History has been cleared!\n\n");
+    clear();
+    printf("HISTORY HAS BEEN CLEARED!\n\n");
     start_rotate(current);
 }
 
 void history_overflow(){
-    printf("History memory full... use clear to reset\n");
+    printf("HISTORY MEMORY FULL, USE CLEAR TO RESET\n");
     for(int i=0; i<18; i++){
         result_history[i] = result_history[i+1];
         opt_history[i] = opt_history[i+1];
@@ -239,6 +253,7 @@ void plus(CVector vc){
     record_history(vc, '+');
 
     current = current + vc;
+    clear();
     start_rotate(current);
 }
 
@@ -246,6 +261,7 @@ void minus(CVector vc){
     record_history(vc, '-');
 
     current = current - vc;
+    clear();
     start_rotate(current);
 }
 
@@ -253,6 +269,7 @@ void multi(CVector vc){
     record_history(vc, '*');
 
     current = current * vc;
+    clear();
     start_rotate(current);
 }
 
@@ -270,6 +287,10 @@ void parser(std::string input){
         if(DEBUG_LOG == true) {std::cout<<"Input after 1st remove is: "<<input<<std::endl;}
     input.erase(std::remove_if(input.begin(), input.end(), &notValid), input.end());
         if(DEBUG_LOG == true) {std::cout<<"Input after 2nd remove is: "<<input<<std::endl;}
+    if(input == ""){
+        printf(RED"INVALID EXPRESSION\n\n"NRM);
+        start_rotate(current);
+    }
     symbol = input.at(0);
         if(DEBUG_LOG == true) {std::cout<<"Parsed symbol is: "<<symbol<<std::endl;}
     //Final syntax check before sending to process
@@ -277,7 +298,7 @@ void parser(std::string input){
     bool syntax_check = filter_symbol(symbol);
     bool order_check = filter_order(input);
     if(!(comma_check && syntax_check && order_check)){
-        printf(RED"INVALID EXPRESSION\n"NRM);
+        printf(RED"INVALID EXPRESSION\n\n"NRM);
         start_rotate(current);
     }//Input verified and to be processed
     input.erase(std::remove_if(input.begin(), input.end(), &notNumber), input.end());
@@ -300,6 +321,7 @@ void parser(std::string input){
 }
 
 void print_history(){
+    clear();
     printf("-----------HISTORY-----------\n\n");
     for(int i=0; i<19 && isOperation(symbol_history[i]); i++){
         std::cout << "=> (" << result_history[i].get_X() << ", " << result_history[i].get_Y() << ", " << result_history[i].get_Z() << ") "
@@ -339,22 +361,38 @@ void test(){
 }
 
 void help(){
-    printf(YLW"------HELP------\n");
-    printf("Syntax: [operation] + [vector]\n");
-    printf("Example: +(1,2,3)\n");
-    printf("Valid operation: +, -, *\n");
-    printf("Vector: (double, double, double)\n");
-    printf("To exit enter: exit\n\n"NRM);
+    clear();
+    printf(YLW"================HELP===============\n");
+    printf("1.SYNTAX: OPERATION + VECTOR\n");
+    printf("2.EXAMPLE *(1,2,3)\n");
+    printf("3.SUPPORTED OPERATION: +, -, *\n");
+    printf("4.ENTER HISTORY TO VIEW PAST 15 ENTRIES\n");
+    printf("5.ENTER EXIT TO ESCAPE\n\n"NRM);
     start_rotate(current);
 }
 
 void end_program(){
+    clear();
     printf(RED "-----------EXIT-----------\n\n" NRM);
     exit(0);
 }
 
 int main(){
     if(TEST_LOG==true) test();
+
+    printf("\n\n");
+    printf("    / ======= \\    \n");
+    printf("   / __________\\  \n");
+    printf("  | ___________ |  \n");
+    printf("  | | -       | |  \n");
+    printf("  | | v0.0.5  | |  \n");
+    printf("  | |_________| |  \n");
+    printf("  \\=___________   \n");
+    printf("  / =========== \\ \n");
+    printf(" / ::::::::::::: \\ \n");
+    printf("(_________________) \n\n");
+    printf(YLW"For help on syntax, enter: help\n"NRM);
+    printf("\n\n");
 
     current.set_value(0,0,0);
     start_rotate(current);
