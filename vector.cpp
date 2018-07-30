@@ -353,10 +353,21 @@ void test_minus(){
     printf("Expecting... -3,-3,-3\n");
 }
 
+void test_multi(){
+    printf(GRN"Testing multiplication operation\n"NRM);
+    CVector vector_A(0,0,0);
+    CVector vector_B(1,2,3);
+    CVector vector_C(4,5,6);
+    vector_A = vector_B * vector_C;
+    std::cout << "Testing multiplication function... " << vector_A.get_X() << "," << vector_A.get_Y() << "," << vector_A.get_Z() << std::endl;
+    printf("Expecting... -3, 6, -3\n");
+}
+
 void test(){
     printf(GRN "Initialising tests...\n" NRM);
     test_plus();
     test_minus();
+    test_multi();
     printf(BLU "Testing complete\n" NRM);
 }
 
@@ -385,7 +396,7 @@ int main(){
     printf("   / __________\\  \n");
     printf("  | ___________ |  \n");
     printf("  | | -       | |  \n");
-    printf("  | | v0.0.5  | |  \n");
+    printf("  | | v0.0.6  | |  \n");
     printf("  | |_________| |  \n");
     printf("  \\=___________   \n");
     printf("  / =========== \\ \n");
@@ -399,7 +410,3 @@ int main(){
 
     return 0;
 }
-
-//TODO: Add user interface
-
-//BASH COLOR REFERENCE: https://github.com/shiena/ansicolor/blob/master/README.md
