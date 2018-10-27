@@ -12,6 +12,8 @@
 #include <xs1.h>
 #include <platform.h>
 
+#define GAME_ENDED 90
+
 on tile[0] : in port buttons = XS1_PORT_4E; //port to access xCore-200 buttons
 on tile[0] : out port leds = XS1_PORT_4F;   //port to access xCore-200 LEDs
 
@@ -27,9 +29,15 @@ int showLEDs(out port p, chanend fromVisualiser) {
                //2nd bit...blue LED
                //3rd bit...green LED
                //4th bit...red LED
-  while (1) {
+  int running = 1;
+
+  while (running) {
     fromVisualiser :> pattern;   //receive new pattern from visualiser
-    p <: pattern;                //send pattern to LED port
+    if (pattern == GAME_ENDED) {      //If pattern is equal to 90 (GAME_ENDED) stop the process
+        running = 0;
+    } else {
+        p <: pattern;                //send pattern to LED port
+    }
   }
   return 0;
 }
@@ -37,11 +45,16 @@ int showLEDs(out port p, chanend fromVisualiser) {
 //READ BUTTONS and send button pattern to userAnt
 void buttonListener(in port b, chanend toUserAnt) {
   int r;
-  while (1) {
+  int running = 1;
+
+  while (running) {
     b when pinseq(15)  :> r;    // check that no button is pressed
     b when pinsneq(15) :> r;    // check if some buttons are pressed
-    if ((r==13) || (r==14))     // if either button is pressed
-    toUserAnt <: r;             // send button pattern to userAnt
+    if ((r==13) || (r==14)) {     // if either button is pressed
+        toUserAnt <: r;             // send button pattern to userAnt
+    } else if (r == GAME_ENDED) {   //Stop the process if GAME_ENDED is received form the user ant
+        running = 0;
+    }
   }
 }
 
@@ -80,12 +93,18 @@ void visualiser(chanend fromUserAnt, chanend fromAttackerAnt, chanend toLEDs) {
   int round = 0;
   int distance = 0;
   int dangerzone = 0;
-  while (1) {
+  int running = 1;
+
+  while (running) {
     if (round==0) printstr("ANT DEFENDER GAME (press button to start)\n");
     round++;
     select {
       case fromUserAnt :> userAntToDisplay:
-        consolePrint(userAntToDisplay,attackerAntToDisplay);
+          if (userAntToDisplay == GAME_ENDED) {   //Stop process if receive GAME_ENDED from user ant
+              running = 0;
+          } else {
+              consolePrint(userAntToDisplay,attackerAntToDisplay);
+          }
         break;
       case fromAttackerAnt :> attackerAntToDisplay:
         consolePrint(userAntToDisplay,attackerAntToDisplay);
@@ -95,7 +114,12 @@ void visualiser(chanend fromUserAnt, chanend fromAttackerAnt, chanend toLEDs) {
     dangerzone = ((attackerAntToDisplay==7) || (attackerAntToDisplay==15));
     pattern = round%2 + 8 * dangerzone + 2 * ((distance==1) || (distance==-1));
     if ((attackerAntToDisplay>7)&&(attackerAntToDisplay<15)) pattern = 15;
-    toLEDs <: pattern;
+
+    if (running == 0) {
+        toLEDs <: GAME_ENDED;       //Send GAME_ENDED to LEDs process
+    } else {
+        toLEDs <: pattern;
+    }
   }
 }
 
@@ -112,42 +136,45 @@ void userAnt(chanend fromButtons, chanend toVisualiser, chanend toController) {
   int buttonInput;                         //the input pattern from the buttonListener
   unsigned int attemptedAntPosition = 0;   //the next attempted defender position after considering button
   int moveForbidden;                       //the verdict of the controller if move is allowed
-  int running = 1;
   toVisualiser <: userAntPosition;         //show initial position
+  int running = 1;                         //indicate if the game is still running
+
   while (running) {
     fromButtons :> buttonInput; //expect values 13 and 14
-    ////////////////////////////////////////////////////////////
-    // !!! place code here for userAnt behaviour
-    if(buttonInput == 13){
-        if(userAntPosition == 0){
+
+    attemptedAntPosition = userAntPosition;
+
+    // Move defender ant with buttons
+    if (buttonInput == 14) {
+        if (userAntPosition == 0) {
             attemptedAntPosition = 22;
-        } else{
-            attemptedAntPosition = userAntPosition -1;
+        } else {
+            attemptedAntPosition--;
         }
-    }
-    else if(buttonInput == 14){
-        if(userAntPosition == 22){
+    } else if (buttonInput == 13) {
+        if (userAntPosition == 22) {
             attemptedAntPosition = 0;
-        } else{
-            attemptedAntPosition = userAntPosition +1;
+        } else {
+            attemptedAntPosition++;
         }
     }
 
+    //Send to controller the attempted user ant position
     toController <: attemptedAntPosition;
+
+    //Receive from controller details about the attempted move
     toController :> moveForbidden;
-    if(moveForbidden == 0){
+
+    if (moveForbidden == 0) {                   //Move is accepted
         userAntPosition = attemptedAntPosition;
-        }
-
-    if(moveForbidden == 1){
-        //printf("Move Rejected\n");
-        }
-
-    if(moveForbidden == 2){
+        toVisualiser <: userAntPosition;
+    } else if (moveForbidden == 1) {            //Move is forbidden
+        toVisualiser <: userAntPosition;
+    } else if (moveForbidden == 2){             //Game is over configuration
         running = 0;
+        toVisualiser <: GAME_ENDED;
+        fromButtons <: GAME_ENDED;
     }
-    /////////////////////////////////////////////////////////////
-    toVisualiser <: userAntPosition;
   }
 }
 
@@ -163,42 +190,41 @@ void attackerAnt(chanend toVisualiser, chanend toController) {
   toVisualiser <: attackerAntPosition;       //show initial position
 
   while (running) {
-  ////////////////////////////////////////////////////////////
-  // !!! place your code here for attacker behaviour
-  if(currentDirection == 1){ //R
-      if(attackerAntPosition == 22){
-          attemptedAntPosition = 0;
-      } else{
-          attemptedAntPosition = attackerAntPosition +1;
+
+      //Update the move counter
+      moveCounter++;
+
+      //Change direction if move number is divisible by 31 or 37
+      if ((moveCounter % 31 == 0) || (moveCounter % 37 == 0)) {
+          currentDirection = (-1) * currentDirection;
       }
-  }
 
-  if(currentDirection == -1){ //L
-       if(attackerAntPosition == 0){
-           attemptedAntPosition = 22;
-       } else{
-           attemptedAntPosition = attackerAntPosition -1;
-       }
-   }
+      //Attacker ant move logic
+      if ((attackerAntPosition == 0) && (currentDirection == -1)) {
+          attemptedAntPosition = 22;
+      } else if ((attackerAntPosition == 22) && (currentDirection == 1)) {
+          attemptedAntPosition = 0;
+      } else {
+          attemptedAntPosition = attackerAntPosition + currentDirection;
+      }
 
-  toController <: attemptedAntPosition;
-  toController :> moveForbidden;
+      //Send to controller the attacker ant attempted position
+      toController <: attemptedAntPosition;
 
-  if(moveForbidden == 0){
-      attackerAntPosition = attemptedAntPosition;
-  }
+      //Receive details about the move from controller
+      toController :> moveForbidden;
 
-  if(moveForbidden == 1){
-      currentDirection = (-1)*currentDirection;
-  }
+      if (moveForbidden == 0) {                         //Move accepted
+          attackerAntPosition = attemptedAntPosition;
+          toVisualiser <: attackerAntPosition;
+      } else if (moveForbidden == 1) {                  //Move forbidden
+          currentDirection = (-1) * currentDirection;
+          toVisualiser <: attackerAntPosition;
+      } else {                                          //Game ended configuration
+          attackerAntPosition = attemptedAntPosition;
+          running = 0;
+      }
 
-  if(moveForbidden == 2){
-      running = 0;
-  }
-  
-  /////////////////////////////////////////////////////////////
-      moveCounter ++;
-  toVisualiser <: attackerAntPosition;
   waitMoment();
   }
 }
@@ -208,51 +234,49 @@ void attackerAnt(chanend toVisualiser, chanend toController) {
 //                      has moved to winning positions.
 void controller(chanend fromAttacker, chanend fromUser) {
   unsigned int lastReportedUserAntPosition = 11;      //position last reported by userAnt
-  unsigned int lastReportedAttackerAntPosition = 2;   //position last reported by attackerAnt
+  unsigned int lastReportedAttackerAntPosition = 5;   //position last reported by attackerAnt
   unsigned int attempt = 0;                           //incoming data from ants
   int gameEnded = 0;                                  //indicates if game is over
-  int round = 0;                                      //Maximum round before Defender wins
   fromUser :> attempt;                                //start game when user moves
   fromUser <: 1;                                      //forbid first move
   while (!gameEnded) {
     select {
       case fromAttacker :> attempt:
-      /////////////////////////////////////////////////////////////
-      // !!! place your code here to give permission/deny attacker move or to end game
-      if(attempt == lastReportedUserAntPosition){
-          fromAttacker <: 1;
-          round++;
-      } else{
-          fromAttacker <: 0;
-          lastReportedAttackerAntPosition = attempt;
-          round++;
-              if(lastReportedAttackerAntPosition > 7 && lastReportedAttackerAntPosition < 15){ //End game found treasure
+          //Move is forbidden if attacker wants to move over defender,
+          //also change direction
+          if (attempt == lastReportedUserAntPosition) {
+              fromAttacker <: 1;
+          } else {
+              //Game ends if attacker gets to treasure location
+              if (attempt > 8 && attempt < 14) {
+                  printf("-----GAME IS OVER! ATTACKER ANT WINS!----- \n");
                   gameEnded = 1;
-                  printf("Attacker Ant has found the treasure!\n");
-                  }
-      }
-      if(round > 20){
-          gameEnded = 1;
-          printf("Defender has won!\n");
-      }
-      /////////////////////////////////////////////////////////////
+                  fromAttacker <: 2;
+                  fromUser <: 2;
+              } else {
+                  //Game continues
+                  fromAttacker <: 0;
+              }
+              //Update last reported attacker ant position
+              lastReportedAttackerAntPosition = attempt;
+          }
+
+
         break;
       case fromUser :> attempt:
-      /////////////////////////////////////////////////////////////
-      // !!! place your code here to give permission/deny user move
-      if(attempt == lastReportedAttackerAntPosition){
-          fromUser <: 1;
-      }else{
-          fromUser <: 0;
-          lastReportedUserAntPosition = attempt;
-      }
-      /////////////////////////////////////////////////////////////
+          //Move is forbidden is defender tries to move over attacker ant
+          if (attempt == lastReportedAttackerAntPosition) {
+              fromUser <: 1;
+          } else {
+              //Update last reportde user ant position
+              lastReportedUserAntPosition = attempt;
+              //Continue game
+              fromUser <: 0;
+          }
+
         break;
     }
   }
-
-  fromUser <: 2;
-  fromAttacker <: 2;
 }
 
 //MAIN PROCESS defining channels, orchestrating and starting the processes
@@ -277,3 +301,4 @@ int main(void) {
   }
   return 0;
 }
+
