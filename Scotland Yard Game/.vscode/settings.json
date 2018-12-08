@@ -1,0 +1,16 @@
+{
+  "saveAndRun": {
+    "commands": [
+      {
+        "match": "\\.java$",
+        "cmd": ";clear && ./mvnw clean compile && ./mvnw test"
+      }
+    ]
+  },
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "java.import.maven.enabled": true,
+  "java.format.enabled": false,
+  "java.autobuild.enabled": true,
+  "java.signatureHelp.enabled": true,
+  "cSpell.words": ["configuration"]
+}
